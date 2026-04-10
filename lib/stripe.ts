@@ -1,0 +1,9 @@
+import Stripe from 'stripe';
+
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2024-06-20',
+  typescript: true,
+});
+
+export const TEST_PRICE_CENTS = 49; // $0.49
+export const CURRENCY = 'usd';
