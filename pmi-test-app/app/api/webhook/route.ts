@@ -1,10 +1,10 @@
+export const runtime = "nodejs";
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { supabaseAdmin } from '@/lib/supabase';
 import Stripe from 'stripe';
 
 // Must disable Next.js body parser to get raw body for Stripe signature verification
-export const config = { api: { bodyParser: false } };
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
