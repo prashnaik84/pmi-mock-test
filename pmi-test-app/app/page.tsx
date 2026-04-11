@@ -29,7 +29,7 @@ export default function HomePage() {
       });
       const data = await res.json();
       if (data.url) {
-        window.location.href = data.url; // Redirect to Stripe Checkout
+        window.location.href = data.url;
       } else {
         setError(data.error || 'Failed to create checkout. Please try again.');
       }
@@ -42,12 +42,11 @@ export default function HomePage() {
 
   return (
     <main className={styles.main}>
-      {/* Background decorations */}
       <div className={styles.bgGlow1} />
       <div className={styles.bgGlow2} />
 
       <div className={styles.hero}>
-        <div className={styles.badge}>✦ PMI Certified Prep Platform</div>
+        <div className={styles.badge}>✦ AI-Powered PMP Prep Platform</div>
 
         <h1 className={styles.title}>
           PMP Mock Exam<br />
@@ -65,7 +64,6 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Price Card */}
         <div className={styles.priceCard}>
           <div className={styles.priceHeader}>
             <div>
@@ -75,17 +73,18 @@ export default function HomePage() {
             </div>
             <div className={styles.priceRight}>
               <div className={styles.qCount}>180 Questions</div>
-              <div className={styles.timerNote}>4 Hours timer</div>
+              <div className={styles.timerNote}>4 hour timer</div>
             </div>
           </div>
 
           <ul className={styles.features}>
             {[
-              'PMP, CAPM & Agile domains — all 5 covered',
-              'AI-generated unique questions every test',
+              'All 5 PMI domains covered across 180 questions',
+              'AI-generated unique questions every test — never repeats',
               'Instant answer explanations after each question',
               'Domain-by-domain score breakdown',
               'Pass/Fail based on PMI threshold (61%)',
+              'Flag questions and review before submitting',
             ].map(f => (
               <li key={f}><span className={styles.check}>✓</span>{f}</li>
             ))}
@@ -111,7 +110,7 @@ export default function HomePage() {
             onClick={handleCheckout}
             disabled={loading}
           >
-            {loading ? <><span className="spinner" /> Processing…</> : 'Pay $0.49 · Start Test →'}
+            {loading ? <><span className="spinner" /> Processing…</> : 'Pay $4.99 · Start 180-Question Exam →'}
           </button>
 
           <div className={styles.lockNote}>
@@ -119,22 +118,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Stats row */}
-        <div className={styles.statsRow}>
-          {[
-            { n: '50K+', l: 'Tests Taken' },
-            { n: '4.9★', l: 'Avg Rating' },
-            { n: '87%', l: 'Pass Rate' },
-            { n: '$0.49', l: 'Per Session' },
-          ].map(s => (
-            <div key={s.l} className={styles.stat}>
-              <div className={styles.statN}>{s.n}</div>
-              <div className={styles.statL}>{s.l}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Domain pills */}
         <div className={styles.domainsSection}>
           <div className={styles.domainsLabel}>Domains Covered</div>
           <div className={styles.domainPills}>
@@ -143,6 +126,10 @@ export default function HomePage() {
             ))}
           </div>
         </div>
+
+        <p style={{fontSize:'12px', color:'#555', marginTop:'2rem', textAlign:'center'}}>
+          Independent practice tool — not affiliated with or endorsed by PMI®
+        </p>
       </div>
     </main>
   );
