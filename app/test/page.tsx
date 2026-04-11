@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import styles from './exam.module.css'
 
@@ -448,7 +449,7 @@ function ExamPage()
       )}
     </div>
   )
-}import { Suspense } from 'react'
+}
 
 export default function ExamPageWrapper() {
   return (
