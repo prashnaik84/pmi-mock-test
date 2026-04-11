@@ -70,12 +70,12 @@ export default function HomePage() {
           <div className={styles.priceHeader}>
             <div>
               <div className={styles.priceLabel}>Per Test Session</div>
-              <div className={styles.price}>$0.50</div>
+              <div className={styles.price}>$4.99</div>
               <div className={styles.priceSub}>One-time · No subscription</div>
             </div>
             <div className={styles.priceRight}>
-              <div className={styles.qCount}>20 Questions</div>
-              <div className={styles.timerNote}>60 min timer</div>
+              <div className={styles.qCount}>180 Questions</div>
+              <div className={styles.timerNote}>4 hour timer</div>
             </div>
           </div>
 
@@ -111,7 +111,7 @@ export default function HomePage() {
             onClick={handleCheckout}
             disabled={loading}
           >
-            {loading ? <><span className="spinner" /> Processing…</> : 'Pay $0.50 · Start Test →'}
+            {loading ? <><span className="spinner" /> Processing…</> : 'Pay $4.99 · Start Test →'}
           </button>
 
           <div className={styles.lockNote}>
@@ -122,10 +122,7 @@ export default function HomePage() {
         {/* Stats row */}
         <div className={styles.statsRow}>
           {[
-            { n: '50K+', l: 'Tests Taken' },
-            { n: '4.9★', l: 'Avg Rating' },
-            { n: '87%', l: 'Pass Rate' },
-            { n: '$0.50', l: 'Per Session' },
+            { n: '$4.99', l: 'Per Session' },
           ].map(s => (
             <div key={s.l} className={styles.stat}>
               <div className={styles.statN}>{s.n}</div>
