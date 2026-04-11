@@ -14,19 +14,19 @@ const BATCHES = [
   {
     domain: 'People & Process',
     approach: 'Predictive',
-    count: 30,
+    count: 10,
     focus: `Leadership styles: servant, transformational, situational. Team development (Tuckman). Conflict resolution — collaborative problem-solving. Stakeholder engagement. Motivation theories: Maslow, Herzberg, McGregor. Integrated change control — ALL changes need a CR. Schedule compression: fast-tracking vs crashing. Earned value: CPI, SPI, EAC. Critical path. Quality: prevention over inspection. Procurement contract types.`
   },
   {
     domain: 'People & Process',
     approach: 'Agile/Hybrid',
-    count: 30,
+    count: 10,
     focus: `Servant leadership: removing impediments, not directing. Self-organizing teams. Psychological safety. Product Owner vs Scrum Master roles. Sprint planning, daily scrum, retrospective, review. Backlog refinement. Definition of done. Velocity tracking. Kanban WIP limits. Hybrid governance.`
   },
   {
     domain: 'Business Environment & Risk',
     approach: 'Predictive/Agile',
-    count: 30,
+    count: 10,
     focus: `Benefits realization. Organizational change management. Project governance and stage gates. Strategic alignment: NPV, BCR, IRR. Risk vs issue distinction. Risk register vs issue log. Risk responses: avoid/transfer/mitigate/accept. Contingency vs management reserve. Residual vs secondary risks. EMV calculation. Change control board. Lessons learned throughout project lifecycle.`
   }
 ]
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     const batchPromises = BATCHES.map(async (batch, batchIndex) => {
       const response = await anthropic.messages.create({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 8000,
+        max_tokens: 4000,
         messages: [{ role: 'user', content: buildBatchPrompt(batch) }]
       })
       const content = response.content[0]
