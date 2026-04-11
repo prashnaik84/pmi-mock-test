@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
           price_data: {
             currency: CURRENCY,
             product_data: {
-              name: PMP Mock Exam — 180 Questions
+              name:'PMP Mock Exam - 180 Questions',
               description: 'AI-generated PMP practice test · Instant access · Explanations included',
               images: [`${baseUrl}/og-image.png`],
             },
