@@ -22,7 +22,7 @@ const TOTAL_QUESTIONS = 180
 const EXAM_DURATION = 240 * 60
 const BREAK_POINT = 90
 
-export default function ExamPage() {
+function ExamPage()
   const searchParams = useSearchParams()
   const router = useRouter()
   const sessionId = searchParams.get('session')
@@ -447,5 +447,13 @@ export default function ExamPage() {
         </div>
       )}
     </div>
+  )
+}import { Suspense } from 'react'
+
+export default function ExamPageWrapper() {
+  return (
+    <Suspense fallback={<div style={{background:'#0a0c10',minHeight:'100vh'}}/>}>
+      <ExamPage />
+    </Suspense>
   )
 }
