@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
 import { Suspense } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import styles from './exam.module.css'
 
@@ -23,7 +23,7 @@ const TOTAL_QUESTIONS = 180
 const EXAM_DURATION = 240 * 60
 const BREAK_POINT = 90
 
-function ExamPage()
+function ExamPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const sessionId = searchParams.get('session')
