@@ -5,5 +5,5 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   typescript: true,
 });
 
-export const TEST_PRICE_CENTS = 49; // $0.49
+export const TEST_PRICE_CENTS = 4.99; // $4.99
 export const CURRENCY = 'usd';
