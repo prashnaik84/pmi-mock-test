@@ -70,12 +70,12 @@ export default function HomePage() {
           <div className={styles.priceHeader}>
             <div>
               <div className={styles.priceLabel}>Per Test Session</div>
-              <div className={styles.price}>$0.49</div>
+              <div className={styles.price}>$4.99</div>
               <div className={styles.priceSub}>One-time · No subscription</div>
             </div>
             <div className={styles.priceRight}>
-              <div className={styles.qCount}>20 Questions</div>
-              <div className={styles.timerNote}>60 min timer</div>
+              <div className={styles.qCount}>180 Questions</div>
+              <div className={styles.timerNote}>4 Hours timer</div>
             </div>
           </div>
 
