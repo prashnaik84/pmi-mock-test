@@ -2,20 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
+  const sessionId = req.nextUrl.searchParams.get('sessionId');
   const stripeSessionId = req.nextUrl.searchParams.get('stripe_session_id');
 
-  if (!stripeSessionId) {
-    return NextResponse.json({ error: 'Missing stripe_session_id' }, { status: 400 });
+  if (!sessionId && !stripeSessionId) {
+    return NextResponse.json({ error: 'Missing session ID' }, { status: 400 });
   }
 
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from('test_sessions')
-    .select('id, status, email, total_questions, score, correct_answers, time_taken_seconds, domain_results, completed_at')
-    .eq('stripe_session_id', stripeSessionId)
-    .single();
+    .select('id, status, email, total_questions, score, correct_answers, time_taken_seconds, domain_results, completed_at');
+
+  if (sessionId) {
+    query = query.eq('id', sessionId);
+  } else {
+    query = query.eq('stripe_session_id', stripeSessionId);
+  }
+
+  const { data, error } = await query.single();
 
   if (error || !data) {
-    // Webhook might be slightly delayed — return pending state
     return NextResponse.json({ status: 'pending' });
   }
 
