@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
         },
       ],
       metadata: { email },
-      success_url: `${baseUrl}/test?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${baseUrl}/test?session={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/?cancelled=true`,
       expires_at: Math.floor(Date.now() / 1000) + 30 * 60, // 30 min to complete payment
     });
