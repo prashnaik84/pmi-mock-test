@@ -47,7 +47,7 @@ export default function HomePage() {
       <div className={styles.bgGlow2} />
 
       <div className={styles.hero}>
-        <div className={styles.badge}>✦ PMI Certified Prep Platform</div>
+        <div className={styles.badge}>✦ AI-Powered PMP Prep Platform</div>
 
         <h1 className={styles.title}>
           PMP Mock Exam<br />
