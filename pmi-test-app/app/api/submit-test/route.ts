@@ -1,102 +1,146 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
-import { DomainResult } from '@/types';
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
-export async function POST(req: NextRequest) {
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+const PASS_THRESHOLD = 0.61
+const TOTAL_QUESTIONS = 180
+
+interface AnswerPayload {
+  [position: string]: number
+}
+
+export async function POST(request: NextRequest) {
   try {
-    const { sessionId, answers, timeTakenSeconds } = await req.json();
-    // answers: number[] — index of selected option per question (position-ordered)
-
-    if (!sessionId || !Array.isArray(answers)) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    const { sessionId, answers, timeTaken, timeExpired } = await request.json() as {
+      sessionId: string
+      answers: AnswerPayload
+      timeTaken: number
+      timeExpired?: boolean
     }
 
-    // Verify session
-    const { data: session } = await supabaseAdmin
-      .from('test_sessions')
-      .select('id, status')
-      .eq('id', sessionId)
-      .single();
-
-    if (!session || session.status === 'completed') {
-      return NextResponse.json({ error: 'Invalid or already completed session' }, { status: 403 });
-    }
-
-    // Fetch stored questions (with correct answers)
-    const { data: questions, error: qErr } = await supabaseAdmin
+    const { data: questions, error: qError } = await supabase
       .from('test_questions')
-      .select('position, answer, domain, explanation, options, q')
+      .select('position, answer, domain, approach, difficulty, trap_type')
       .eq('session_id', sessionId)
-      .order('position');
+      .order('position', { ascending: true })
 
-    if (qErr || !questions) {
-      return NextResponse.json({ error: 'Questions not found' }, { status: 404 });
+    if (qError || !questions || questions.length === 0) {
+      return NextResponse.json({ error: 'Questions not found' }, { status: 404 })
     }
 
-    // Score
-    let correct = 0;
-    const domainMap: Record<string, { c: number; t: number }> = {};
-    const detailedResults: any[] = [];
+    let correct = 0
+    const domainMap: Record<string, { correct: number; total: number }> = {}
+    const approachMap: Record<string, { correct: number; total: number }> = {}
+    const trapMap: Record<string, { correct: number; total: number }> = {}
+    const detailedResults: any[] = []
 
-    questions.forEach((q, i) => {
-      const userAnswer = answers[i] ?? -1;
-      const isCorrect = userAnswer === q.answer;
-      if (isCorrect) correct++;
-
-      const d = q.domain || 'General';
-      if (!domainMap[d]) domainMap[d] = { c: 0, t: 0 };
-      domainMap[d].t++;
-      if (isCorrect) domainMap[d].c++;
+    questions.forEach(q => {
+      const userAnswer = answers[q.position] ?? null
+      const isCorrect = userAnswer === q.answer
+      if (isCorrect) correct++
 
       detailedResults.push({
-        position: i,
-        q: q.q,
-        options: q.options,
+        position: q.position,
         userAnswer,
         correctAnswer: q.answer,
         isCorrect,
-        explanation: q.explanation,
         domain: q.domain,
-      });
-    });
+        approach: q.approach,
+        difficulty: q.difficulty,
+        trap_type: q.trap_type
+      })
 
-    const total = questions.length;
-    const score = Math.round((correct / total) * 100);
-    const pass = score >= 61; // PMI passing threshold
+      if (!domainMap[q.domain]) domainMap[q.domain] = { correct: 0, total: 0 }
+      domainMap[q.domain].total++
+      if (isCorrect) domainMap[q.domain].correct++
 
-    const domainResults: DomainResult[] = Object.entries(domainMap).map(([domain, v]) => ({
+      if (!approachMap[q.approach]) approachMap[q.approach] = { correct: 0, total: 0 }
+      approachMap[q.approach].total++
+      if (isCorrect) approachMap[q.approach].correct++
+
+      if (q.trap_type) {
+        if (!trapMap[q.trap_type]) trapMap[q.trap_type] = { correct: 0, total: 0 }
+        trapMap[q.trap_type].total++
+        if (isCorrect) trapMap[q.trap_type].correct++
+      }
+    })
+
+    const totalAnswered = questions.length
+    const score = Math.round((correct / totalAnswered) * 100)
+    const passed = score >= Math.round(PASS_THRESHOLD * 100)
+
+    const getPerformanceBand = (pct: number): string => {
+      if (pct >= 80) return 'Above Target'
+      if (pct >= 61) return 'Target'
+      if (pct >= 45) return 'Below Target'
+      return 'Needs Improvement'
+    }
+
+    const domainResults = Object.entries(domainMap).map(([domain, data]) => ({
       domain,
-      correct: v.c,
-      total: v.t,
-      pct: Math.round((v.c / v.t) * 100),
-    }));
+      correct: data.correct,
+      total: data.total,
+      percentage: Math.round((data.correct / data.total) * 100),
+      band: getPerformanceBand(Math.round((data.correct / data.total) * 100))
+    }))
 
-    // Save results
-    await supabaseAdmin
+    const approachResults = Object.entries(approachMap).map(([approach, data]) => ({
+      approach,
+      correct: data.correct,
+      total: data.total,
+      percentage: Math.round((data.correct / data.total) * 100)
+    }))
+
+    const trapResults = Object.entries(trapMap)
+      .map(([trap, data]) => ({
+        trap,
+        correct: data.correct,
+        total: data.total,
+        percentage: Math.round((data.correct / data.total) * 100)
+      }))
+      .sort((a, b) => a.percentage - b.percentage)
+
+    const { error: updateError } = await supabase
       .from('test_sessions')
       .update({
         status: 'completed',
         score,
         correct_answers: correct,
-        time_taken_seconds: timeTakenSeconds || null,
+        total_questions: totalAnswered,
+        time_taken_seconds: timeTaken,
+        passed,
+        time_expired: timeExpired || false,
         domain_results: domainResults,
-        completed_at: new Date().toISOString(),
-        passed: pass,
+        approach_results: approachResults,
+        trap_results: trapResults,
         detailed_results: detailedResults,
+        completed_at: new Date().toISOString()
       })
-      .eq('id', sessionId);
+      .eq('id', sessionId)
+
+    if (updateError) {
+      console.error('Update error:', updateError)
+      return NextResponse.json({ error: 'Failed to save results' }, { status: 500 })
+    }
 
     return NextResponse.json({
+      success: true,
+      sessionId,
       score,
       correct,
-      total,
-      pass,
+      total: totalAnswered,
+      passed,
       domainResults,
-      detailedResults,
-      timeTakenSeconds,
-    });
-  } catch (err: any) {
-    console.error('Submit error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+      approachResults,
+      trapResults
+    })
+
+  } catch (error) {
+    console.error('Submit test error:', error)
+    return NextResponse.json({ error: 'Failed to submit test' }, { status: 500 })
   }
 }
