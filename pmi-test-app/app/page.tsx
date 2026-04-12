@@ -70,7 +70,7 @@ export default function HomePage() {
           <div className={styles.priceHeader}>
             <div>
               <div className={styles.priceLabel}>Per Test Session</div>
-              <div className={styles.price}>$4.99</div>
+              <div className={styles.price}>$1.99</div>
               <div className={styles.priceSub}>One-time · No subscription</div>
             </div>
             <div className={styles.priceRight}>
@@ -111,7 +111,7 @@ export default function HomePage() {
             onClick={handleCheckout}
             disabled={loading}
           >
-            {loading ? <><span className="spinner" /> Processing…</> : 'Pay $4.99 · Start Test →'}
+            {loading ? <><span className="spinner" /> Processing…</> : 'Pay $1.99 · Start Test →'}
           </button>
 
           <div className={styles.lockNote}>
@@ -122,7 +122,7 @@ export default function HomePage() {
         {/* Stats row */}
         <div className={styles.statsRow}>
           {[
-            { n: '$4.99', l: 'Per Session' },
+            { n: '$1.99', l: 'Per Session' },
           ].map(s => (
             <div key={s.l} className={styles.stat}>
               <div className={styles.statN}>{s.n}</div>
