@@ -10,129 +10,100 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const BATCHES = [
-  {
-    domain: 'People & Process',
-    approach: 'Predictive',
-    count: 10,
-    focus: `Leadership styles: servant, transformational, situational. Team development (Tuckman). Conflict resolution — collaborative problem-solving. Stakeholder engagement. Motivation theories: Maslow, Herzberg, McGregor. Integrated change control — ALL changes need a CR. Schedule compression: fast-tracking vs crashing. Earned value: CPI, SPI, EAC. Critical path. Quality: prevention over inspection. Procurement contract types.`
-  },
-  {
-    domain: 'People & Process',
-    approach: 'Agile/Hybrid',
-    count: 10,
-    focus: `Servant leadership: removing impediments, not directing. Self-organizing teams. Psychological safety. Product Owner vs Scrum Master roles. Sprint planning, daily scrum, retrospective, review. Backlog refinement. Definition of done. Velocity tracking. Kanban WIP limits. Hybrid governance.`
-  },
-  {
-    domain: 'Business Environment & Risk',
-    approach: 'Predictive/Agile',
-    count: 10,
-    focus: `Benefits realization. Organizational change management. Project governance and stage gates. Strategic alignment: NPV, BCR, IRR. Risk vs issue distinction. Risk register vs issue log. Risk responses: avoid/transfer/mitigate/accept. Contingency vs management reserve. Residual vs secondary risks. EMV calculation. Change control board. Lessons learned throughout project lifecycle.`
-  }
+const BATCH_CONFIGS = [
+  { domain: 'People', approach: 'Predictive', focus: 'Leadership, conflict resolution, stakeholder engagement, motivation theories, communication planning, team development stages' },
+  { domain: 'People', approach: 'Agile/Hybrid', focus: 'Servant leadership, self-organizing teams, psychological safety, Product Owner, Scrum Master, sprint ceremonies' },
+  { domain: 'Process', approach: 'Predictive', focus: 'Change control, WBS, schedule compression, earned value (CPI/SPI/EAC), critical path, quality, procurement, project closure' },
+  { domain: 'Process', approach: 'Agile/Hybrid', focus: 'Sprint planning, daily scrum, retrospective, backlog refinement, definition of done, velocity, kanban WIP limits' },
+  { domain: 'Business Environment', approach: 'Predictive/Agile', focus: 'Benefits realization, organizational change, governance, strategic alignment, NPV/BCR/IRR, lessons learned' },
+  { domain: 'Risk & Change', approach: 'Predictive/Agile', focus: 'Risk vs issue, risk register, risk responses, contingency vs management reserve, EMV, change control board, workarounds' },
 ]
-
-function buildBatchPrompt(batch: typeof BATCHES[0]): string {
-  return `You are a senior PMI exam item writer. Generate ${batch.count} authentic PMP exam questions for: ${batch.domain} (${batch.approach}).
-
-Focus: ${batch.focus}
-
-PMI MINDSET — every question must reflect:
-1. PROCESS FIRST: Follow the process even in a crisis
-2. PROACTIVE OVER REACTIVE: Good PMs anticipate
-3. COLLABORATE OVER COMMAND: Facilitate consensus
-4. ESCALATE LAST: Exhaust own tools before sponsor
-5. IN AGILE — TEAM DECIDES HOW: PM removes blockers only
-
-EVERY question MUST have these four distractor types:
-A) Common sense but PMI-wrong (skips process or acts unilaterally)
-B) Technically valid but wrong timing
-C) Escalation too early (goes to sponsor before using own authority)
-D) CORRECT: follows process, facilitates, engages stakeholder, or documents properly
-
-Include these trap patterns:
-- Change request trap: verbal change request must go through ICC
-- Conflict trap: facilitate resolution, don't pick sides
-- Risk/issue trap: occurred risk = issue, use contingency plan + issue log
-- Escalation trap: try own authority first
-- Lessons learned trap: ongoing, not just at close
-
-Return ONLY a valid JSON array. No markdown, no preamble.
-
-[
-  {
-    "q": "Scenario question 3-5 sentences with real context and pressure",
-    "options": ["Option A", "Option B", "Option C", "Option D"],
-    "answer": 2,
-    "explanation": "4-5 sentence explanation of why correct and why others are wrong",
-    "domain": "${batch.domain}",
-    "approach": "${batch.approach}",
-    "difficulty": "medium",
-    "trap_type": "change_request_trap"
-  }
-]`
-}
 
 export async function POST(request: NextRequest) {
   try {
-    const { sessionId } = await request.json()
+    const { sessionId, batchIndex, startPosition } = await request.json()
+
     if (!sessionId) return NextResponse.json({ error: 'Session ID required' }, { status: 400 })
+    if (batchIndex === undefined) return NextResponse.json({ error: 'Batch index required' }, { status: 400 })
 
     const { data: session, error: sessionError } = await supabase
       .from('test_sessions')
-      .select('*')
+      .select('status')
       .eq('id', sessionId)
       .single()
 
     if (sessionError || !session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
-    if (session.status !== 'paid') return NextResponse.json({ error: 'Payment not verified' }, { status: 403 })
+    if (session.status !== 'paid' && session.status !== 'generating') return NextResponse.json({ error: 'Payment not verified' }, { status: 403 })
 
-    const batchPromises = BATCHES.map(async (batch, batchIndex) => {
-      const response = await anthropic.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4000,
-        messages: [{ role: 'user', content: buildBatchPrompt(batch) }]
-      })
-      const content = response.content[0]
-      if (content.type !== 'text') throw new Error('Unexpected response type')
-      let jsonText = content.text.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-      const questions = JSON.parse(jsonText)
-      return { questions, batch, startIndex: batchIndex * 30 }
+    // Mark as generating on first batch
+    if (batchIndex === 0) {
+      await supabase.from('test_sessions').update({ status: 'generating' }).eq('id', sessionId)
+    }
+
+    const batch = BATCH_CONFIGS[batchIndex]
+
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4000,
+      messages: [{
+        role: 'user',
+        content: `You are a PMI exam item writer. Generate exactly 10 PMP exam questions for domain: ${batch.domain} (${batch.approach}).
+
+Focus: ${batch.focus}
+
+PMI rules every question must follow:
+- Process first: always follow the process even in crisis
+- Escalate last: exhaust own authority before going to sponsor
+- Collaborate: facilitate, don't dictate
+- In agile: team decides HOW, PM removes blockers only
+
+Every question needs these 4 distractor types:
+A) Common sense but PMI-wrong (skips process or acts unilaterally)  
+B) Technically valid but wrong timing
+C) Escalates too early to sponsor/management
+D) CORRECT: follows process, facilitates, or documents properly
+
+Return ONLY a raw JSON array. No markdown, no explanation, start with [ end with ].
+
+[{"q":"3-5 sentence realistic scenario with pressure","options":["A text","B text","C text","D text"],"answer":2,"explanation":"4 sentences: why correct, why each wrong answer fails","domain":"${batch.domain}","approach":"${batch.approach}","difficulty":"medium","trap_type":"escalation_trap"}]`
+      }]
     })
 
-    const batchResults = await Promise.all(batchPromises)
+    const content = response.content[0]
+    if (content.type !== 'text') throw new Error('Unexpected response type')
 
-    const allQuestions: any[] = []
-    batchResults.forEach(({ questions, batch, startIndex }) => {
-      questions.slice(0, batch.count).forEach((q: any, i: number) => {
-        allQuestions.push({
-          session_id: sessionId,
-          position: startIndex + i,
-          q: q.q,
-          options: q.options,
-          answer: q.answer,
-          explanation: q.explanation,
-          domain: q.domain || batch.domain,
-          approach: q.approach || batch.approach,
-          difficulty: q.difficulty || 'medium',
-          trap_type: q.trap_type || null
-        })
-      })
-    })
+    let jsonText = content.text.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+    const questions = JSON.parse(jsonText)
 
-    const shuffled = allQuestions
-      .map(q => ({ q, sort: Math.random() }))
-      .sort((a, b) => a.sort - b.sort)
-      .map((item, index) => ({ ...item.q, position: index }))
+    const formattedQuestions = questions.slice(0, 10).map((q: any, i: number) => ({
+      session_id: sessionId,
+      position: startPosition + i,
+      q: q.q,
+      options: q.options,
+      answer: q.answer,
+      explanation: q.explanation,
+      domain: q.domain || batch.domain,
+      approach: q.approach || batch.approach,
+      difficulty: q.difficulty || 'medium',
+      trap_type: q.trap_type || null
+    }))
 
-    const { error: insertError } = await supabase.from('test_questions').insert(shuffled)
-    if (insertError) return NextResponse.json({ error: 'Failed to save questions' }, { status: 500 })
+    const { error: insertError } = await supabase.from('test_questions').insert(formattedQuestions)
+    if (insertError) {
+      console.error('Insert error:', insertError)
+      return NextResponse.json({ error: 'Failed to save questions' }, { status: 500 })
+    }
 
-    await supabase
-      .from('test_sessions')
-      .update({ status: 'questions_ready', total_questions: shuffled.length })
-      .eq('id', sessionId)
+    // On last batch, mark as ready
+    const isLastBatch = batchIndex === BATCH_CONFIGS.length - 1
+    if (isLastBatch) {
+      await supabase
+        .from('test_sessions')
+        .update({ status: 'questions_ready', total_questions: (batchIndex + 1) * 10 })
+        .eq('id', sessionId)
+    }
 
-    return NextResponse.json({ success: true, questionCount: shuffled.length })
+    return NextResponse.json({ success: true, batchIndex, questionCount: formattedQuestions.length, isLastBatch })
 
   } catch (error) {
     console.error('Generate questions error:', error)
