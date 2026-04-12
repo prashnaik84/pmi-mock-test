@@ -25,7 +25,7 @@ const EXAM_DURATION = 90 * 60
 function ExamPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const sessionId = searchParams.get('session')
+  const stripeOrSessionId = searchParams.get("session")
 
   const [viewMode, setViewMode] = useState<ViewMode>('loading')
   const [questions, setQuestions] = useState<Question[]>([])

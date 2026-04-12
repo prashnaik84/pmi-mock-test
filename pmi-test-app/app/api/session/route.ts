@@ -4,8 +4,9 @@ import { supabaseAdmin } from '@/lib/supabase';
 export async function GET(req: NextRequest) {
   const sessionId = req.nextUrl.searchParams.get('sessionId');
   const stripeSessionId = req.nextUrl.searchParams.get('stripe_session_id');
+  const session = req.nextUrl.searchParams.get('session');
 
-  if (!sessionId && !stripeSessionId) {
+  if (!sessionId && !stripeSessionId && !session) {
     return NextResponse.json({ error: 'Missing session ID' }, { status: 400 });
   }
 
@@ -13,7 +14,11 @@ export async function GET(req: NextRequest) {
     .from('test_sessions')
     .select('id, status, email, total_questions, score, correct_answers, time_taken_seconds, domain_results, completed_at');
 
-  if (sessionId) {
+  if (session && session.startsWith('cs_')) {
+    query = query.eq('stripe_session_id', session);
+  } else if (session) {
+    query = query.eq('id', session);
+  } else if (sessionId) {
     query = query.eq('id', sessionId);
   } else {
     query = query.eq('stripe_session_id', stripeSessionId);
