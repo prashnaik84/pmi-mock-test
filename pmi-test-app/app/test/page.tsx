@@ -25,10 +25,11 @@ const EXAM_DURATION = 90 * 60
 function ExamPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const stripeOrSessionId = searchParams.get("session")
+  const rawSession = searchParams.get('session')
 
   const [viewMode, setViewMode] = useState<ViewMode>('loading')
   const [questions, setQuestions] = useState<Question[]>([])
+  const [internalId, setInternalId] = useState<string | null>(null)
   const [answers, setAnswers] = useState<AnswerState>({})
   const [flags, setFlags] = useState<FlagState>({})
   const [current, setCurrent] = useState(0)
@@ -49,23 +50,32 @@ function ExamPage() {
   ]
 
   useEffect(() => {
-    if (!sessionId) return
+    if (!rawSession) return
     const init = async () => {
       try {
-        const sessionRes = await fetch(`/api/session?sessionId=${sessionId}`)
+        // Look up session — works with both Stripe ID and internal UUID
+        const sessionRes = await fetch(`/api/session?session=${rawSession}`)
         const sessionData = await sessionRes.json()
 
-        if (sessionData.status === 'questions_ready' || sessionData.status === 'completed') {
-          await fetchQuestions()
-          return
-        }
-
-        if (sessionData.status !== 'paid') {
+        if (!sessionData || !sessionData.id) {
           router.push('/')
           return
         }
 
-        // Generate batches sequentially
+        const id = sessionData.id
+        setInternalId(id)
+
+        if (sessionData.status === 'questions_ready' || sessionData.status === 'completed') {
+          await fetchQuestionsById(id)
+          return
+        }
+
+        if (sessionData.status !== 'paid' && sessionData.status !== 'generating') {
+          router.push('/')
+          return
+        }
+
+        // Generate batches sequentially using internal UUID
         for (let i = 0; i < TOTAL_BATCHES; i++) {
           setLoadingMessage(batchMessages[i])
           setLoadingProgress(Math.round((i / TOTAL_BATCHES) * 90))
@@ -73,7 +83,7 @@ function ExamPage() {
           const res = await fetch('/api/generate-questions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId, batchIndex: i, startPosition: i * 10 })
+            body: JSON.stringify({ sessionId: id, batchIndex: i, startPosition: i * 10 })
           })
 
           if (!res.ok) throw new Error(`Batch ${i} failed`)
@@ -81,7 +91,7 @@ function ExamPage() {
 
         setLoadingProgress(95)
         setLoadingMessage('Finalizing your exam...')
-        await fetchQuestions()
+        await fetchQuestionsById(id)
 
       } catch (err) {
         console.error(err)
@@ -89,10 +99,10 @@ function ExamPage() {
       }
     }
     init()
-  }, [sessionId])
+  }, [rawSession])
 
-  const fetchQuestions = async () => {
-    const res = await fetch(`/api/questions?sessionId=${sessionId}`)
+  const fetchQuestionsById = async (id: string) => {
+    const res = await fetch(`/api/questions?sessionId=${id}`)
     const data = await res.json()
     if (data.questions && data.questions.length > 0) {
       setQuestions(data.questions)
@@ -133,7 +143,7 @@ function ExamPage() {
     return `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`
   }
 
-  const timeWarning = timeLeft < 1800
+  const timeWarning = timeLeft < 600
   const totalQuestions = questions.length
 
   const selectAnswer = (optionIndex: number) => {
@@ -158,7 +168,7 @@ function ExamPage() {
       const res = await fetch('/api/submit-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, answers, timeTaken, timeExpired })
+        body: JSON.stringify({ sessionId: internalId, answers, timeTaken, timeExpired })
       })
       const data = await res.json()
       if (data.success) router.push(`/results/${data.sessionId}`)
