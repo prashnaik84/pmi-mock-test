@@ -74,8 +74,8 @@ export default function HomePage() {
               <div className={styles.priceSub}>One-time · No subscription</div>
             </div>
             <div className={styles.priceRight}>
-              <div className={styles.qCount}>180 Questions</div>
-              <div className={styles.timerNote}>4 hour timer</div>
+              <div className={styles.qCount}>60 Questions</div>
+              <div className={styles.timerNote}>90 min timer</div>
             </div>
           </div>
 
