@@ -20,7 +20,7 @@ type FlagState = Record<number, boolean>
 type ViewMode = 'loading' | 'ready' | 'exam' | 'review' | 'submitting'
 
 const TOTAL_BATCHES = 6
-const EXAM_DURATION = 240 * 60
+const EXAM_DURATION = 90 * 60
 
 function ExamPage() {
   const searchParams = useSearchParams()
