@@ -202,7 +202,7 @@ export default function ResultsPage({ params }: { params: { sessionId: string } 
         {/* CTA buttons */}
         <div className={styles.ctaRow}>
           <button className="btn-primary" onClick={() => router.push('/')}>
-            🔄 Take Another Test — $0.49
+            🔄 Take Another Test — $1.99
           </button>
           <button className="btn-secondary" onClick={() => router.push('/')}>
             ← Home
