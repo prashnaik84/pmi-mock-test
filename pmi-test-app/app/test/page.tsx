@@ -200,7 +200,7 @@ function ExamPage() {
               <span className={styles.readyLabel}>Questions</span>
             </div>
             <div className={styles.readyStat}>
-              <span className={styles.readyNum}>4:00</span>
+              <span className={styles.readyNum}>1:30</span>
               <span className={styles.readyLabel}>Hours</span>
             </div>
             <div className={styles.readyStat}>
