@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4000,
+      max_tokens: 5000,
       messages: [{
         role: 'user',
         content: `You are a PMI exam item writer. Generate exactly 10 PMP exam questions for domain: ${batch.domain} (${batch.approach}).
