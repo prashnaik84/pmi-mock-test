@@ -19,9 +19,8 @@ type AnswerState = Record<number, number>
 type FlagState = Record<number, boolean>
 type ViewMode = 'loading' | 'ready' | 'exam' | 'review' | 'submitting'
 
-const TOTAL_QUESTIONS = 180
+const TOTAL_BATCHES = 6
 const EXAM_DURATION = 240 * 60
-const BREAK_POINT = 90
 
 function ExamPage() {
   const searchParams = useSearchParams()
@@ -36,34 +35,18 @@ function ExamPage() {
   const [timeLeft, setTimeLeft] = useState(EXAM_DURATION)
   const [showBreakPrompt, setShowBreakPrompt] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
-  const [loadingMessage, setLoadingMessage] = useState('Initializing your exam...')
+  const [loadingMessage, setLoadingMessage] = useState('Verifying payment...')
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const startTimeRef = useRef<number>(Date.now())
 
-  const loadingSteps = [
-    { pct: 10, msg: 'Verifying payment...' },
-    { pct: 20, msg: 'Generating People domain questions...' },
-    { pct: 35, msg: 'Generating Process domain questions...' },
-    { pct: 50, msg: 'Generating Business Environment questions...' },
-    { pct: 65, msg: 'Generating Agile & Hybrid questions...' },
-    { pct: 80, msg: 'Generating Risk & Change questions...' },
-    { pct: 92, msg: 'Shuffling and finalizing 180 questions...' },
-    { pct: 100, msg: 'Your exam is ready.' },
+  const batchMessages = [
+    'Generating People (Predictive) questions...',
+    'Generating People (Agile) questions...',
+    'Generating Process (Predictive) questions...',
+    'Generating Process (Agile) questions...',
+    'Generating Business Environment questions...',
+    'Generating Risk & Change questions...',
   ]
-
-  useEffect(() => {
-    if (viewMode !== 'loading') return
-    let step = 0
-    const advance = () => {
-      if (step >= loadingSteps.length) return
-      setLoadingProgress(loadingSteps[step].pct)
-      setLoadingMessage(loadingSteps[step].msg)
-      step++
-    }
-    advance()
-    const interval = setInterval(advance, 3800)
-    return () => clearInterval(interval)
-  }, [viewMode])
 
   useEffect(() => {
     if (!sessionId) return
@@ -82,13 +65,22 @@ function ExamPage() {
           return
         }
 
-        const genRes = await fetch('/api/generate-questions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId })
-        })
+        // Generate batches sequentially
+        for (let i = 0; i < TOTAL_BATCHES; i++) {
+          setLoadingMessage(batchMessages[i])
+          setLoadingProgress(Math.round((i / TOTAL_BATCHES) * 90))
 
-        if (!genRes.ok) throw new Error('Generation failed')
+          const res = await fetch('/api/generate-questions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId, batchIndex: i, startPosition: i * 10 })
+          })
+
+          if (!res.ok) throw new Error(`Batch ${i} failed`)
+        }
+
+        setLoadingProgress(95)
+        setLoadingMessage('Finalizing your exam...')
         await fetchQuestions()
 
       } catch (err) {
@@ -102,11 +94,13 @@ function ExamPage() {
   const fetchQuestions = async () => {
     const res = await fetch(`/api/questions?sessionId=${sessionId}`)
     const data = await res.json()
-    if (data.questions) {
+    if (data.questions && data.questions.length > 0) {
       setQuestions(data.questions)
       setLoadingProgress(100)
       setLoadingMessage('Your exam is ready.')
       setTimeout(() => setViewMode('ready'), 800)
+    } else {
+      setLoadingMessage('Something went wrong. Please refresh.')
     }
   }
 
@@ -127,7 +121,7 @@ function ExamPage() {
   }, [viewMode])
 
   useEffect(() => {
-    if (current === BREAK_POINT && viewMode === 'exam' && !showBreakPrompt) {
+    if (current === 30 && viewMode === 'exam' && !showBreakPrompt) {
       setShowBreakPrompt(true)
     }
   }, [current, viewMode])
@@ -140,6 +134,7 @@ function ExamPage() {
   }
 
   const timeWarning = timeLeft < 1800
+  const totalQuestions = questions.length
 
   const selectAnswer = (optionIndex: number) => {
     setAnswers(prev => ({ ...prev, [current]: optionIndex }))
@@ -149,19 +144,16 @@ function ExamPage() {
     setFlags(prev => ({ ...prev, [current]: !prev[current] }))
   }
 
-  const goTo = (index: number) => {
-    setCurrent(index)
-  }
+  const goTo = (index: number) => setCurrent(index)
 
   const answeredCount = Object.keys(answers).length
   const flaggedCount = Object.values(flags).filter(Boolean).length
-  const unansweredCount = TOTAL_QUESTIONS - answeredCount
+  const unansweredCount = totalQuestions - answeredCount
 
   const handleSubmit = async (timeExpired = false) => {
     if (timerRef.current) clearInterval(timerRef.current)
     const timeTaken = Math.floor((Date.now() - startTimeRef.current) / 1000)
     setViewMode('submitting')
-
     try {
       const res = await fetch('/api/submit-test', {
         method: 'POST',
@@ -169,9 +161,7 @@ function ExamPage() {
         body: JSON.stringify({ sessionId, answers, timeTaken, timeExpired })
       })
       const data = await res.json()
-      if (data.success) {
-        router.push(`/results/${data.sessionId}`)
-      }
+      if (data.success) router.push(`/results/${data.sessionId}`)
     } catch (err) {
       console.error(err)
     }
@@ -190,8 +180,8 @@ function ExamPage() {
             <div className={styles.progressBar} style={{ width: `${loadingProgress}%` }} />
           </div>
           <p className={styles.loadingHint}>
-            Generating 180 AI-powered situational questions across all PMI domains.<br />
-            This takes about 30 seconds. Do not close this tab.
+            Generating 60 AI-powered situational questions across all PMI domains.<br />
+            This takes about 60 seconds. Do not close this tab.
           </p>
         </div>
       </div>
@@ -206,7 +196,7 @@ function ExamPage() {
           <h1 className={styles.readyTitle}>PMP® Practice Exam</h1>
           <div className={styles.readyStats}>
             <div className={styles.readyStat}>
-              <span className={styles.readyNum}>180</span>
+              <span className={styles.readyNum}>{totalQuestions}</span>
               <span className={styles.readyLabel}>Questions</span>
             </div>
             <div className={styles.readyStat}>
@@ -221,7 +211,6 @@ function ExamPage() {
           <div className={styles.readyRules}>
             <div className={styles.rule}>Questions are situational — read every word carefully</div>
             <div className={styles.rule}>You can flag questions and return to them</div>
-            <div className={styles.rule}>An optional break is available at question 90</div>
             <div className={styles.rule}>Timer begins when you click Start Exam</div>
           </div>
           <button className={styles.startBtn} onClick={() => setViewMode('exam')}>
@@ -255,7 +244,7 @@ function ExamPage() {
             </div>
           </div>
           <div className={styles.reviewGrid}>
-            {Array.from({ length: TOTAL_QUESTIONS }, (_, i) => (
+            {Array.from({ length: totalQuestions }, (_, i) => (
               <button
                 key={i}
                 className={`${styles.reviewDot} ${
@@ -307,7 +296,7 @@ function ExamPage() {
         </div>
         <div className={styles.topCenter}>
           <span className={styles.qCounter}>
-            Question {current + 1} of {TOTAL_QUESTIONS}
+            Question {current + 1} of {totalQuestions}
           </span>
         </div>
         <div className={styles.topRight}>
@@ -320,7 +309,7 @@ function ExamPage() {
       <div className={styles.progressStrip}>
         <div
           className={styles.progressFill}
-          style={{ width: `${(answeredCount / TOTAL_QUESTIONS) * 100}%` }}
+          style={{ width: `${(answeredCount / totalQuestions) * 100}%` }}
         />
       </div>
 
@@ -362,7 +351,7 @@ function ExamPage() {
               >
                 ← Previous
               </button>
-              {current < TOTAL_QUESTIONS - 1 ? (
+              {current < totalQuestions - 1 ? (
                 <button
                   className={`${styles.navBtn} ${styles.navNext}`}
                   onClick={() => setCurrent(c => c + 1)}
@@ -403,7 +392,7 @@ function ExamPage() {
           <div className={styles.sidebarSection}>
             <div className={styles.sidebarLabel}>Quick Jump</div>
             <div className={styles.miniGrid}>
-              {Array.from({ length: TOTAL_QUESTIONS }, (_, i) => (
+              {Array.from({ length: totalQuestions }, (_, i) => (
                 <button
                   key={i}
                   className={`${styles.miniDot} ${
@@ -435,8 +424,7 @@ function ExamPage() {
           <div className={styles.modalCard}>
             <h3 className={styles.modalTitle}>Optional Break</h3>
             <p className={styles.modalBody}>
-              You have completed the first 90 questions — halfway through the exam.
-              The real PMP exam offers an optional 10-minute break at this point.
+              You have completed the first half of the exam.
               Your timer continues during the break.
             </p>
             <div className={styles.modalActions}>
