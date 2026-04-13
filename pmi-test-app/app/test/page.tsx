@@ -82,8 +82,8 @@ function ExamPage() {
           return
         }
 
-        for (let i = 0; i < TOTAL_BATCHES; i++) {
-          setLoadingMessage(batchMessages[i])
+const batchCount = sessionData.is_free_trial ? 1 : TOTAL_BATCHES
+for (let i = 0; i < batchCount; i++) {          setLoadingMessage(batchMessages[i])
           setLoadingProgress(Math.round((i / TOTAL_BATCHES) * 90))
 
           const res = await fetch('/api/generate-questions', {

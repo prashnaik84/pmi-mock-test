@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabaseAdmin
     .from('test_sessions')
-    .select('id, status, email, total_questions, score, correct_answers, time_taken_seconds, domain_results, completed_at');
+    .select('id, status, email, total_questions, is_free_trial, score, correct_answers, time_taken_seconds, domain_results, completed_at');
 
   if (session && session.startsWith('cs_')) {
     query = query.eq('stripe_session_id', session);
