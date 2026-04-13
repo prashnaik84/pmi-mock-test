@@ -25,7 +25,6 @@ type FlagState = Record<number, boolean>
 type ViewMode = 'loading' | 'ready' | 'exam' | 'review' | 'submitting' | 'explaining'
 
 const TOTAL_BATCHES = 6
-const EXAM_DURATION = 90 * 60
 
 function ExamPage() {
   const searchParams = useSearchParams()
@@ -37,11 +36,12 @@ function ExamPage() {
   const [reviewQuestions, setReviewQuestions] = useState<ReviewQuestion[]>([])
   const [userAnswers, setUserAnswers] = useState<Record<number, number>>({})
   const [internalId, setInternalId] = useState<string | null>(null)
+  const [isFreeTrial, setIsFreeTrial] = useState(false)
   const [answers, setAnswers] = useState<AnswerState>({})
   const [flags, setFlags] = useState<FlagState>({})
   const [current, setCurrent] = useState(0)
   const [reviewCurrent, setReviewCurrent] = useState(0)
-  const [timeLeft, setTimeLeft] = useState(EXAM_DURATION)
+  const [timeLeft, setTimeLeft] = useState(90 * 60)
   const [showBreakPrompt, setShowBreakPrompt] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [loadingMessage, setLoadingMessage] = useState('Verifying payment...')
@@ -71,6 +71,9 @@ function ExamPage() {
 
         const id = sessionData.id
         setInternalId(id)
+        const freeTrial = !!sessionData.is_free_trial
+        setIsFreeTrial(freeTrial)
+        setTimeLeft(freeTrial ? 15 * 60 : 90 * 60)
 
         if (sessionData.status === 'questions_ready' || sessionData.status === 'completed') {
           await fetchQuestionsById(id)
@@ -82,9 +85,10 @@ function ExamPage() {
           return
         }
 
-const batchCount = sessionData.is_free_trial ? 1 : TOTAL_BATCHES
-for (let i = 0; i < batchCount; i++) {          setLoadingMessage(batchMessages[i])
-          setLoadingProgress(Math.round((i / TOTAL_BATCHES) * 90))
+        const batchCount = freeTrial ? 1 : TOTAL_BATCHES
+        for (let i = 0; i < batchCount; i++) {
+          setLoadingMessage(batchMessages[i])
+          setLoadingProgress(Math.round((i / batchCount) * 90))
 
           const res = await fetch('/api/generate-questions', {
             method: 'POST',
@@ -137,7 +141,7 @@ for (let i = 0; i < batchCount; i++) {          setLoadingMessage(batchMessages[
   }, [viewMode])
 
   useEffect(() => {
-    if (current === 30 && viewMode === 'exam' && !showBreakPrompt) {
+    if (current === 30 && viewMode === 'exam' && !showBreakPrompt && !isFreeTrial) {
       setShowBreakPrompt(true)
     }
   }, [current, viewMode])
@@ -149,7 +153,7 @@ for (let i = 0; i < batchCount; i++) {          setLoadingMessage(batchMessages[
     return `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`
   }
 
-  const timeWarning = timeLeft < 600
+  const timeWarning = timeLeft < 300
   const totalQuestions = questions.length
 
   const selectAnswer = (optionIndex: number) => {
@@ -178,7 +182,6 @@ for (let i = 0; i < batchCount; i++) {          setLoadingMessage(batchMessages[
       })
       const data = await res.json()
       if (data.success) {
-        // Load review questions
         const reviewRes = await fetch(`/api/questions-reviewed?sessionId=${internalId}`)
         const reviewData = await reviewRes.json()
         if (reviewData.questions) {
@@ -210,8 +213,8 @@ for (let i = 0; i < batchCount; i++) {          setLoadingMessage(batchMessages[
             <div className={styles.progressBar} style={{ width: `${loadingProgress}%` }} />
           </div>
           <p className={styles.loadingHint}>
-            Generating 60 AI-powered situational questions across all PMI domains.<br />
-            This takes about 60 seconds. Do not close this tab.
+            Generating {isFreeTrial ? '10' : '60'} AI-powered situational questions across all PMI domains.<br />
+            This takes about {isFreeTrial ? '15' : '60'} seconds. Do not close this tab.
           </p>
         </div>
       </div>
@@ -223,7 +226,7 @@ for (let i = 0; i < batchCount; i++) {          setLoadingMessage(batchMessages[
     return (
       <div className={styles.readyScreen}>
         <div className={styles.readyCard}>
-          <div className={styles.readyBadge}>Full Simulation</div>
+          <div className={styles.readyBadge}>{isFreeTrial ? 'Free Trial' : 'Full Simulation'}</div>
           <h1 className={styles.readyTitle}>PMP® Practice Exam</h1>
           <div className={styles.readyStats}>
             <div className={styles.readyStat}>
@@ -231,8 +234,8 @@ for (let i = 0; i < batchCount; i++) {          setLoadingMessage(batchMessages[
               <span className={styles.readyLabel}>Questions</span>
             </div>
             <div className={styles.readyStat}>
-              <span className={styles.readyNum}>1:30</span>
-              <span className={styles.readyLabel}>Hours</span>
+              <span className={styles.readyNum}>{isFreeTrial ? '0:15' : '1:30'}</span>
+              <span className={styles.readyLabel}>{isFreeTrial ? 'Minutes' : 'Hours'}</span>
             </div>
             <div className={styles.readyStat}>
               <span className={styles.readyNum}>87%</span>
@@ -245,6 +248,11 @@ for (let i = 0; i < batchCount; i++) {          setLoadingMessage(batchMessages[
             <div className={styles.rule}>After submitting, review every answer with explanations</div>
             <div className={styles.rule}>Timer begins when you click Start Exam</div>
           </div>
+          {isFreeTrial && (
+            <div style={{background:'#1a1508', border:'1px solid #3a2e10', borderRadius:'8px', padding:'10px 14px', marginBottom:'1rem', fontSize:'13px', color:'#c9a84c', textAlign:'center'}}>
+              Free trial — 10 questions. Upgrade to full 60-question exam for $1.99
+            </div>
+          )}
           <button className={styles.startBtn} onClick={() => setViewMode('exam')}>
             Start Exam
           </button>
@@ -371,7 +379,6 @@ for (let i = 0; i < batchCount; i++) {          setLoadingMessage(batchMessages[
                     <span className={styles.optionText}>{opt}</span>
                     {i === rq.answer && <span className={styles.optionTag}>✓ Correct</span>}
                     {i === userAnswer && i !== rq.answer && <span className={styles.optionTagWrong}>Your answer</span>}
-                    {userAnswer === undefined && i === rq.answer && <span className={styles.optionTag}>Not answered</span>}
                   </div>
                 )
               })}
@@ -381,6 +388,23 @@ for (let i = 0; i < batchCount; i++) {          setLoadingMessage(batchMessages[
               <div className={styles.explanationLabel}>Explanation</div>
               <p className={styles.explanationText}>{rq.explanation}</p>
             </div>
+
+            {isFreeTrial && reviewCurrent === reviewQuestions.length - 1 && (
+              <div style={{background:'#1a1508', border:'1px solid #3a2e10', borderRadius:'10px', padding:'1.25rem', marginTop:'1.5rem', textAlign:'center'}}>
+                <p style={{color:'#c9a84c', fontSize:'15px', fontWeight:'600', marginBottom:'8px'}}>
+                  Enjoyed the free trial?
+                </p>
+                <p style={{color:'#888', fontSize:'13px', marginBottom:'1rem'}}>
+                  Get the full 60-question exam with all 5 PMI domains for just $1.99
+                </p>
+                <button
+                  onClick={() => router.push('/')}
+                  style={{background:'#c9a84c', color:'#0a0c10', border:'none', padding:'12px 24px', borderRadius:'8px', fontSize:'14px', fontWeight:'700', cursor:'pointer'}}
+                >
+                  Upgrade to Full Exam — $1.99
+                </button>
+              </div>
+            )}
 
             <div className={styles.explainNav}>
               <button
@@ -543,6 +567,18 @@ for (let i = 0; i < batchCount; i++) {          setLoadingMessage(batchMessages[
           <button className={styles.reviewBtn} onClick={() => setViewMode('review')}>
             Review & Submit
           </button>
+
+          {isFreeTrial && (
+            <div style={{marginTop:'auto', padding:'10px', background:'#1a1508', border:'1px solid #3a2e10', borderRadius:'8px', textAlign:'center'}}>
+              <p style={{fontSize:'11px', color:'#c9a84c', marginBottom:'6px'}}>Free trial — 10 questions</p>
+              <button
+                onClick={() => router.push('/')}
+                style={{fontSize:'11px', color:'#c9a84c', background:'transparent', border:'1px solid #3a2e10', padding:'4px 10px', borderRadius:'4px', cursor:'pointer'}}
+              >
+                Upgrade — $1.99
+              </button>
+            </div>
+          )}
         </aside>
       </div>
 
