@@ -83,7 +83,7 @@ export default function HomePage() {
               'AI-generated unique questions every test — never repeats',
               'Instant answer explanations after each question',
               'Domain-by-domain score breakdown',
-              'Pass/Fail based on PMI threshold (61%)',
+              'Pass/Fail based on PMI threshold (87%)',
               'Flag questions and review before submitting',
             ].map(f => (
               <li key={f}><span className={styles.check}>✓</span>{f}</li>

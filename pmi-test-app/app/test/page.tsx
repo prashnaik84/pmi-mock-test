@@ -235,7 +235,7 @@ function ExamPage() {
               <span className={styles.readyLabel}>Hours</span>
             </div>
             <div className={styles.readyStat}>
-              <span className={styles.readyNum}>61%</span>
+              <span className={styles.readyNum}>87%</span>
               <span className={styles.readyLabel}>Pass threshold</span>
             </div>
           </div>

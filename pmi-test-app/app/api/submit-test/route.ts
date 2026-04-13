@@ -6,7 +6,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const PASS_THRESHOLD = 0.61
+const PASS_THRESHOLD = 0.87
 const TOTAL_QUESTIONS = 180
 
 interface AnswerPayload {
