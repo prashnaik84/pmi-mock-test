@@ -40,6 +40,32 @@ export default function HomePage() {
     }
   }
 
+  async function handleFreeTrial() {
+    setError('');
+    if (!email || !email.includes('@')) {
+      setError('Please enter your email to start the free trial.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/free-trial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (data.sessionId) {
+        window.location.href = `/test?session=${data.sessionId}`;
+      } else {
+        setError(data.error || 'Could not start free trial. This email may have already been used.');
+      }
+    } catch {
+      setError('Network error. Please check your connection.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <main className={styles.main}>
       <div className={styles.bgGlow1} />
@@ -83,7 +109,7 @@ export default function HomePage() {
               'AI-generated unique questions every test — never repeats',
               'Instant answer explanations after each question',
               'Domain-by-domain score breakdown',
-              'Pass/Fail based on PMI threshold (87%)',
+              'Pass/Fail based on 87% practice threshold',
               'Flag questions and review before submitting',
             ].map(f => (
               <li key={f}><span className={styles.check}>✓</span>{f}</li>
@@ -110,8 +136,19 @@ export default function HomePage() {
             onClick={handleCheckout}
             disabled={loading}
           >
-            {loading ? <><span className="spinner" /> Processing…</> : 'Pay $1.99 · Start Test →'}
+            {loading ? <><span className="spinner" /> Processing…</> : 'Pay $1.99 · Start 60-Question Exam →'}
           </button>
+
+          <div style={{textAlign:'center', margin:'0.75rem 0 0'}}>
+            <button
+              style={{background:'transparent', border:'1px solid #333', color:'#888', padding:'12px 20px', borderRadius:'8px', fontSize:'14px', cursor:'pointer', width:'100%'}}
+              onClick={handleFreeTrial}
+              disabled={loading}
+            >
+              Try 10 Free Questions — No Payment Required
+            </button>
+            <p style={{fontSize:'11px', color:'#555', marginTop:'6px'}}>One free trial per email address</p>
+          </div>
 
           <div className={styles.lockNote}>
             🔒 Secured by Stripe · 256-bit TLS · No card data stored
