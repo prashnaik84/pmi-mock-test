@@ -736,4 +736,117 @@
   .reviewGrid {
     grid-template-columns: repeat(12, 1fr);
   }
+}.explainShell {
+  min-height: 100vh;
+  background: #0a0c10;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #e8e6e3;
+}
+
+.explainBody {
+  flex: 1;
+  padding: 2rem;
+  display: flex;
+  justify-content: center;
+}
+
+.explainCard {
+  max-width: 760px;
+  width: 100%;
+}
+
+.optionCorrect {
+  border-color: #2a4030 !important;
+  background: #0f1a12 !important;
+}
+
+.optionCorrect .optionLetter {
+  background: #2a4030;
+  color: #5a9966;
+  border-color: #2a4030;
+}
+
+.optionWrong {
+  border-color: #3a1a1a !important;
+  background: #1a0f0f !important;
+}
+
+.optionWrong .optionLetter {
+  background: #3a1a1a;
+  color: #cc6666;
+  border-color: #3a1a1a;
+}
+
+.optionTag {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: #5a9966;
+  background: #1a2219;
+  padding: 2px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.optionTagWrong {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: #cc6666;
+  background: #1e0f0f;
+  padding: 2px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.correctBadge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: #1a2219;
+  color: #5a9966;
+  border: 1px solid #2a4030;
+}
+
+.wrongBadge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: #1e0f0f;
+  color: #cc6666;
+  border: 1px solid #3a1a1a;
+}
+
+.explanationBox {
+  margin-top: 1.5rem;
+  background: #0f1117;
+  border: 1px solid #1e2028;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+}
+
+.explanationLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #c9a84c;
+  margin-bottom: 0.75rem;
+}
+
+.explanationText {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #c0bebb;
+}
+
+.explainNav {
+  display: flex;
+  gap: 12px;
+  margin-top: 2rem;
+  justify-content: space-between;
 }

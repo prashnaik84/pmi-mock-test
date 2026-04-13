@@ -15,9 +15,14 @@ interface Question {
   difficulty: string
 }
 
+interface ReviewQuestion extends Question {
+  answer: number
+  explanation: string
+}
+
 type AnswerState = Record<number, number>
 type FlagState = Record<number, boolean>
-type ViewMode = 'loading' | 'ready' | 'exam' | 'review' | 'submitting'
+type ViewMode = 'loading' | 'ready' | 'exam' | 'review' | 'submitting' | 'explaining'
 
 const TOTAL_BATCHES = 6
 const EXAM_DURATION = 90 * 60
@@ -29,10 +34,13 @@ function ExamPage() {
 
   const [viewMode, setViewMode] = useState<ViewMode>('loading')
   const [questions, setQuestions] = useState<Question[]>([])
+  const [reviewQuestions, setReviewQuestions] = useState<ReviewQuestion[]>([])
+  const [userAnswers, setUserAnswers] = useState<Record<number, number>>({})
   const [internalId, setInternalId] = useState<string | null>(null)
   const [answers, setAnswers] = useState<AnswerState>({})
   const [flags, setFlags] = useState<FlagState>({})
   const [current, setCurrent] = useState(0)
+  const [reviewCurrent, setReviewCurrent] = useState(0)
   const [timeLeft, setTimeLeft] = useState(EXAM_DURATION)
   const [showBreakPrompt, setShowBreakPrompt] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
@@ -53,7 +61,6 @@ function ExamPage() {
     if (!rawSession) return
     const init = async () => {
       try {
-        // Look up session — works with both Stripe ID and internal UUID
         const sessionRes = await fetch(`/api/session?session=${rawSession}`)
         const sessionData = await sessionRes.json()
 
@@ -75,7 +82,6 @@ function ExamPage() {
           return
         }
 
-        // Generate batches sequentially using internal UUID
         for (let i = 0; i < TOTAL_BATCHES; i++) {
           setLoadingMessage(batchMessages[i])
           setLoadingProgress(Math.round((i / TOTAL_BATCHES) * 90))
@@ -171,14 +177,28 @@ function ExamPage() {
         body: JSON.stringify({ sessionId: internalId, answers, timeTaken, timeExpired })
       })
       const data = await res.json()
-      if (data.success) router.push(`/results/${data.sessionId}`)
+      if (data.success) {
+        // Load review questions
+        const reviewRes = await fetch(`/api/questions-reviewed?sessionId=${internalId}`)
+        const reviewData = await reviewRes.json()
+        if (reviewData.questions) {
+          setReviewQuestions(reviewData.questions)
+          setUserAnswers(reviewData.userAnswers || {})
+          setReviewCurrent(0)
+          setViewMode('explaining')
+        } else {
+          router.push(`/results/${data.sessionId}`)
+        }
+      }
     } catch (err) {
       console.error(err)
     }
   }
 
   const q = questions[current]
+  const rq = reviewQuestions[reviewCurrent]
 
+  // ── LOADING ──
   if (viewMode === 'loading') {
     return (
       <div className={styles.loadingScreen}>
@@ -198,6 +218,7 @@ function ExamPage() {
     )
   }
 
+  // ── READY ──
   if (viewMode === 'ready') {
     return (
       <div className={styles.readyScreen}>
@@ -221,6 +242,7 @@ function ExamPage() {
           <div className={styles.readyRules}>
             <div className={styles.rule}>Questions are situational — read every word carefully</div>
             <div className={styles.rule}>You can flag questions and return to them</div>
+            <div className={styles.rule}>After submitting, review every answer with explanations</div>
             <div className={styles.rule}>Timer begins when you click Start Exam</div>
           </div>
           <button className={styles.startBtn} onClick={() => setViewMode('exam')}>
@@ -234,6 +256,7 @@ function ExamPage() {
     )
   }
 
+  // ── REVIEW BEFORE SUBMIT ──
   if (viewMode === 'review') {
     return (
       <div className={styles.reviewScreen}>
@@ -281,6 +304,7 @@ function ExamPage() {
     )
   }
 
+  // ── SUBMITTING ──
   if (viewMode === 'submitting') {
     return (
       <div className={styles.loadingScreen}>
@@ -296,8 +320,101 @@ function ExamPage() {
     )
   }
 
+  // ── EXPLANATION REVIEW ──
+  if (viewMode === 'explaining' && rq) {
+    const userAnswer = userAnswers[rq.position]
+    const isCorrect = userAnswer === rq.answer
+
+    return (
+      <div className={styles.explainShell}>
+        <header className={styles.topBar}>
+          <div className={styles.topLeft}>
+            <span className={styles.examBrand}>Answer Review</span>
+          </div>
+          <div className={styles.topCenter}>
+            <span className={styles.qCounter}>
+              Question {reviewCurrent + 1} of {reviewQuestions.length}
+            </span>
+          </div>
+          <div className={styles.topRight}>
+            <button
+              className={styles.navFinish}
+              style={{padding:'8px 16px', borderRadius:'8px', cursor:'pointer', fontSize:'13px'}}
+              onClick={() => router.push(`/results/${internalId}`)}
+            >
+              See Results →
+            </button>
+          </div>
+        </header>
+
+        <div className={styles.explainBody}>
+          <div className={styles.explainCard}>
+            <div className={styles.questionMeta}>
+              <span className={styles.domainTag}>{rq.domain}</span>
+              <span className={styles.approachTag}>{rq.approach}</span>
+              <span className={`${styles.diffTag} ${styles['diff_' + rq.difficulty]}`}>{rq.difficulty}</span>
+              <span className={isCorrect ? styles.correctBadge : styles.wrongBadge}>
+                {isCorrect ? '✓ Correct' : '✗ Incorrect'}
+              </span>
+            </div>
+
+            <p className={styles.questionText}>{rq.q}</p>
+
+            <div className={styles.optionsList}>
+              {rq.options.map((opt, i) => {
+                let optClass = styles.optionBtn
+                if (i === rq.answer) optClass = `${styles.optionBtn} ${styles.optionCorrect}`
+                else if (i === userAnswer && i !== rq.answer) optClass = `${styles.optionBtn} ${styles.optionWrong}`
+                return (
+                  <div key={i} className={optClass}>
+                    <span className={styles.optionLetter}>{String.fromCharCode(65 + i)}</span>
+                    <span className={styles.optionText}>{opt}</span>
+                    {i === rq.answer && <span className={styles.optionTag}>✓ Correct</span>}
+                    {i === userAnswer && i !== rq.answer && <span className={styles.optionTagWrong}>Your answer</span>}
+                    {userAnswer === undefined && i === rq.answer && <span className={styles.optionTag}>Not answered</span>}
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className={styles.explanationBox}>
+              <div className={styles.explanationLabel}>Explanation</div>
+              <p className={styles.explanationText}>{rq.explanation}</p>
+            </div>
+
+            <div className={styles.explainNav}>
+              <button
+                className={styles.navBtn}
+                disabled={reviewCurrent === 0}
+                onClick={() => setReviewCurrent(c => c - 1)}
+              >
+                ← Previous
+              </button>
+              {reviewCurrent < reviewQuestions.length - 1 ? (
+                <button
+                  className={`${styles.navBtn} ${styles.navNext}`}
+                  onClick={() => setReviewCurrent(c => c + 1)}
+                >
+                  Next →
+                </button>
+              ) : (
+                <button
+                  className={`${styles.navBtn} ${styles.navFinish}`}
+                  onClick={() => router.push(`/results/${internalId}`)}
+                >
+                  See Full Results →
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (!q) return null
 
+  // ── EXAM ──
   return (
     <div className={styles.examShell}>
       <header className={styles.topBar}>
